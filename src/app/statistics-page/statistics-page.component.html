@@ -78,16 +78,16 @@
         </tr>
         <tr>
           <td>Total Categories</td>
-          <td>{{ statistics.categoryStats?.length || 0 }}</td>
+          <td>{{ statistics.categoryStats.length || 0 }}</td>
         </tr>
         <tr>
           <td>Total Data Points</td>
           <td>{{ 
-            (statistics.categoryStats?.length || 0) + 
-            (statistics.priceRangeStats?.length || 0) + 
-            (statistics.monthlyStats?.length || 0) + 
-            (statistics.locationStats?.length || 0) + 
-            (statistics.avgPriceByCategory?.length || 0)
+            (statistics.categoryStats.length || 0) + 
+            (statistics.priceRangeStats.length || 0) + 
+            (statistics.monthlyStats.length || 0) + 
+            (statistics.locationStats.length || 0) + 
+            (statistics.avgPriceByCategory.length || 0)
           }}</td>
         </tr>
       </tbody>
