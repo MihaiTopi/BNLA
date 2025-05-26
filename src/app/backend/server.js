@@ -125,7 +125,7 @@ const userInsert = db.prepare(`
 
 // Seeding users with Faker if database is empty
 if (existingCount === 0) {
-  const numUsers = 100000 // Set the number of users to add
+  const numUsers = 1000 // Set the number of users to add
 
   const insertUser = db.prepare(`
     INSERT OR IGNORE INTO Users (username, email, password, rol)
@@ -148,7 +148,7 @@ const existingListingsCount = db.prepare("SELECT COUNT(*) AS count FROM listings
 
 // Seeding listings with Faker if database is empty
 if (existingListingsCount === 0) {
-  const numListings = 100000
+  const numListings = 1000
 
   const insertListing = db.prepare(`
     INSERT OR IGNORE INTO listings (id, title, category, price, description, ownerId, uploadDate, location)
