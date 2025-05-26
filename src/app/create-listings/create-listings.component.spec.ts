@@ -39,7 +39,7 @@ describe('CreateListingsComponent', () => {
       category: 'Home',
       price: 0,
       description: '',
-      owner: 'me',
+      ownerId: 'me',
       uploadDate: '',
       location: 'Cluj'
     });
@@ -80,7 +80,7 @@ describe('CreateListingsComponent', () => {
         category: 'Home',
         price: 10,
         description: 'Test',
-        owner: 'user1',
+        ownerId: 'user1',
         uploadDate: '2023-05-14',
         location: 'Cluj'
       }];
@@ -125,7 +125,7 @@ describe('CreateListingsComponent', () => {
         category: 'Home',
         price: 0,
         description: '',
-        owner: 'me',
+        ownerId: 'me',
         uploadDate: '',
         location: 'Cluj'
       });

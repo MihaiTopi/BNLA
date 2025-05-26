@@ -1,0 +1,96 @@
+<div class="statistics-container">
+  <h1>Marketplace Analytics Dashboard</h1>
+  
+  <div class="stats-header">
+    <div class="stats-info">
+      <p *ngIf="executionTime">Server processing time: <strong>{{ executionTime }}</strong></p>
+    </div>
+    <button class="refresh-btn" (click)="refreshData()" [disabled]="isLoading">
+      {{ isLoading ? 'Loading...' : 'Refresh Data' }}
+    </button>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading statistics...</p>
+  </div>
+
+  <div *ngIf="error" class="error-message">
+    {{ error }}
+  </div>
+
+  <!-- Debug info -->
+  <div *ngIf="!isLoading && !statistics?.categoryStats?.length" class="error-message">
+    <p>No statistics data available. This could be due to:</p>
+    <ul>
+      <li>The API endpoint is not accessible</li>
+      <li>The database has no data</li>
+      <li>There's an error in the API response format</li>
+    </ul>
+    <p>Check the browser console for more details.</p>
+    
+    <!-- Debug buttons -->
+    <div class="debug-actions">
+      <button (click)="useMockData()">Use Mock Data</button>
+      <button (click)="refreshData()">Retry</button>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading && statistics?.categoryStats?.length" class="charts-container">
+    <!-- Category Distribution Chart -->
+    <div class="chart-card">
+      <h3>Category Distribution</h3>
+      <div class="chart-wrapper">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Price Range Distribution Chart -->
+    <div class="chart-card">
+      <h3>Price Range Distribution</h3>
+      <div class="chart-wrapper">
+        <canvas id="priceRangeChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Average Price Chart -->
+    <div class="chart-card">
+      <h3>Average Price by Category</h3>
+      <div class="chart-wrapper">
+        <canvas id="avgPriceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="performance-metrics" *ngIf="statistics && !isLoading">
+    <h2>Performance Metrics</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Server Processing Time</td>
+          <td>{{ executionTime }}</td>
+        </tr>
+        <tr>
+          <td>Total Categories</td>
+          <td>{{ statistics.categoryStats?.length || 0 }}</td>
+        </tr>
+        <tr>
+          <td>Total Data Points</td>
+          <td>{{ 
+            (statistics.categoryStats?.length || 0) + 
+            (statistics.priceRangeStats?.length || 0) + 
+            (statistics.monthlyStats?.length || 0) + 
+            (statistics.locationStats?.length || 0) + 
+            (statistics.avgPriceByCategory?.length || 0)
+          }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

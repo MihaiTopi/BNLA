@@ -1,5 +1,10 @@
 <h2>All Listings</h2>
 
+<!-- Loading indicator -->
+<div *ngIf="isLoading" class="loading-indicator">
+  Loading listings...
+</div>
+
 <!-- Filter and Sort Section -->
 <div class="filters">
   <label for="category">Category:</label>
@@ -20,6 +25,8 @@
   <select id="itemsPerPage" [(ngModel)]="itemsPerPage" (change)="changeItemsPerPage(itemsPerPage)">
     <option [value]="5">5</option>
     <option [value]="10">10</option>
+    <option [value]="20">20</option>
+    <option [value]="-1">Infinite</option>
   </select>
 </div>
 
@@ -28,18 +35,22 @@
   <li *ngFor="let listing of paginatedListings" class="listing-item" [ngClass]="getBorderColor(listing.uploadDate)">
     <strong class="listing-title">{{ listing.title }}</strong> ({{ listing.category }}) - ${{ listing.price }}
     <p class="listing-description">{{ listing.description }}</p>
-    <small class="listing-details">Uploaded on: {{ listing.uploadDate }} | Location: {{ listing.location }} | Owner: {{ listing.owner }}</small>
+    <small class="listing-details">Uploaded on: {{ listing.uploadDate }} | Location: {{ listing.location }} | Owner: {{ listing.ownerId }}</small>
   </li>
-  
 </ul>
 
-<p *ngIf="filteredListings.length === 0">No listings available.</p>
+<p *ngIf="paginatedListings.length === 0 && !isLoading">No listings available.</p>
 
 <!-- Pagination Controls -->
-<div class="pagination">
-  <button (click)="prevPage()" [disabled]="currentPage === 1">Previous</button>
-  <span>Page {{ currentPage }} of {{ totalPages }}</span>
-  <button (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
+<div class="pagination" *ngIf="!infiniteScrollEnabled">
+  <button (click)="prevPage()" [disabled]="currentPage === 1 || isLoading">Previous</button>
+  <span>Page {{ currentPage }} of {{ totalPages }} ({{ totalCount }} total listings)</span>
+  <button (click)="nextPage()" [disabled]="currentPage === totalPages || isLoading">Next</button>
+</div>
+
+<!-- Infinite Scroll Message -->
+<div *ngIf="infiniteScrollEnabled && !isLoading && currentPage < totalPages" class="infinite-scroll-message">
+  Scroll down to load more listings
 </div>
 
 <div class="charts">
@@ -51,5 +62,3 @@
 <button class="add-listing-btn" (click)="startAddingListings()">
   {{ addingInterval ? 'Stop Adding' : 'Start Adding' }}
 </button>
-
-
