@@ -13,11 +13,18 @@ const getLocalIP = () =>
     .flat()
     .find((i) => i.family === "IPv4" && !i.internal)?.address || "localhost"
 
+    /*
 const LOCAL_IP = getLocalIP()
 
 app.listen(PORT, LOCAL_IP, () => {
   console.log(`Server running at http://${LOCAL_IP}:${PORT}`)
+})*/
+
+const PORT2 = process.env.PORT || 3000
+app.listen(PORT2, () => {
+  console.log(`Server running on port ${PORT2}`)
 })
+
 
 app.use(cors())
 app.use(express.json())
