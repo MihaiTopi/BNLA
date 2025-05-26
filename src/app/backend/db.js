@@ -2,6 +2,18 @@ const Database = require('better-sqlite3');
 const db = new Database('./listings.db');
 const { v4: uuidv4 } = require('uuid');
 
+
+
+db.prepare(`
+    DROP TABLE IF EXISTS Listings;
+`).run();
+
+
+db.prepare(`
+    DROP TABLE IF EXISTS Users;
+`).run();
+
+
 // Create database indices for better performance
 function createIndices() {
   // Index for category filtering
@@ -23,16 +35,6 @@ function createIndices() {
 // Create table if it doesn't exist
 db.pragma('foreign_keys = ON');
 
-/*
-db.prepare(`
-    DROP TABLE IF EXISTS Listings;
-`).run();
-
-
-db.prepare(`
-    DROP TABLE IF EXISTS Users;
-`).run();
-*/
 db.prepare(`
     CREATE TABLE IF NOT EXISTS Users (
         username TEXT PRIMARY KEY,
