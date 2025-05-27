@@ -6,7 +6,7 @@ import { MyListingsComponent } from './my-listings/my-listings.component'; // �
 import { StatisticsPageComponent } from './statistics-page/statistics-page.component'; // ✅ Import statistics page component
 
 export const routes: Routes = [
-  { path: '', component: LandingPageComponent },
+  /*{ path: '', component: LandingPageComponent },*/
   { path: 'create', component: CreateListingsComponent },
   { path: 'listings', component: ListingsPageComponent },
   { path: 'my-listings', component: MyListingsComponent }, // ✅ New Route
