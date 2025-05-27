@@ -15,6 +15,21 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(DIST_FOLDER, 'index.csr.html'));
 });
 
+const interfaces = os.networkInterfaces();
+let localIp = 'localhost'; // fallback
+
+// Find the first IPv4 non-internal IP (typical local network IP)
+for (const iface of Object.values(interfaces)) {
+  for (const config of iface) {
+    if (config.family === 'IPv4' && !config.internal) {
+      localIp = config.address;
+      break;
+    }
+  }
+}
+
 app.listen(PORT, () => {
-  console.log(`App running on http://localhost:${PORT}`);
+  console.log(`App running on:`);
+  console.log(`  http://localhost:${PORT}`);
+  console.log(`  http://${localIp}:${PORT} (local network IP)`);
 });
