@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // ✅ Correct: Just define the path separately
 const DIST_FOLDER = path.join(__dirname, 'dist/angular-projet1/browser');
