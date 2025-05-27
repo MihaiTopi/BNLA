@@ -2,13 +2,13 @@
   "name": "angular-projet1",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
-    "start": "node dist/angular-projet1/server/server.mjs",
-    "build:ssr": "ng build && ng run angular-projet1:server",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "serve:ssr:AngularProjet1": "node dist/angular-projet1/server/server.mjs"
-  },
+  "ng": "ng",
+  "start": "npm run serve:ssr",
+  "build:ssr": "ng build --configuration=production && ng run AngularProjet1:server:production",
+  "serve:ssr": "node dist/angular-projet1/server/main.mjs",
+  "watch": "ng build --watch --configuration development",
+  "test": "ng test"
+},
   "private": true,
   "dependencies": {
     "@angular/common": "^19.2.0",
