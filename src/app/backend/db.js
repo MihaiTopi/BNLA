@@ -3,7 +3,7 @@ const db = new Database('./listings.db');
 const { v4: uuidv4 } = require('uuid');
 
 
-
+/*
 db.prepare(`
     DROP TABLE IF EXISTS Listings;
 `).run();
@@ -12,7 +12,7 @@ db.prepare(`
 db.prepare(`
     DROP TABLE IF EXISTS Users;
 `).run();
-
+*/
 
 // Create database indices for better performance
 function createIndices() {

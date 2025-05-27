@@ -73,8 +73,14 @@ export interface StatisticsResponse {
 })
 export class ListingService {
   //private apiUrl = 'http://192.168.64.129:3000/api/listings';
-  private apiUrl = "http://26.183.81.226:3000/api/listings"
-  private statsUrl = "http://26.183.81.226:3000/api/statistics" // change here to statistics-unoptimized to see difference
+  //private apiUrl = "http://26.183.81.226:3000/api/listings"
+  //private statsUrl = "http://26.183.81.226:3000/api/statistics" // change here to statistics-unoptimized to see difference
+  //private apiUrl = "/api/listings";
+  //private statsUrl = "/api/statistics";
+  private apiUrl = "https://server-production-99e3.up.railway.app/api/listings";
+  private statsUrl = "https://server-production-99e3.up.railway.app/api/statistics"; 
+  // or use /api/statistics-unoptimized if needed
+
 
   // Track network and server status internally
   private isOfflineSubject = new BehaviorSubject<boolean>(false)

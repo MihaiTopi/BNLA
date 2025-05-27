@@ -16,7 +16,6 @@
             "outputPath": "dist/angular-projet1",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "prerender": false,
             "polyfills": [
               "zone.js"
             ],
@@ -62,6 +61,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
+          "proxyConfig": "proxy.conf.json",
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
