@@ -5,7 +5,7 @@
   "ng": "ng",
   "start": "npm run serve:ssr",
   "build:ssr": "ng build --configuration=production && ng run AngularProjet1:server:production",
-  "serve:ssr": "node dist/angular-projet1/server/main.mjs",
+  "serve:ssr": "node dist/angular-projet1/server/server.mjs",
   "watch": "ng build --watch --configuration development",
   "test": "ng test"
 },
