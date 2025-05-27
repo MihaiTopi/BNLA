@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "node dist/angular-projet1/server/server.mjs",
+    "start": "ng serve",
     "build:ssr": "ng build && ng run angular-projet1:server",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
