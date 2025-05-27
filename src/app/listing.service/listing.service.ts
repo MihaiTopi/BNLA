@@ -1,6 +1,6 @@
 import { HttpClient, type HttpErrorResponse, HttpParams } from "@angular/common/http"
 import { Injectable } from "@angular/core"
-import { Observable, of, catchError, BehaviorSubject, map, throwError } from "rxjs"
+import { Observable, of, catchError, BehaviorSubject, map } from "rxjs"
 import type { Listing } from "../models/listing.model"
 import { v4 as uuidv4 } from "uuid"
 
@@ -361,16 +361,27 @@ export class ListingService {
   }
 
   addListing(listing: Listing): Observable<Listing> {
-  if (!listing.id) listing.id = uuidv4()
+    if (!listing.id) listing.id = uuidv4()
 
-  return this.http.post<Listing>(this.apiUrl, listing).pipe(
-    catchError((error: HttpErrorResponse) => {
-      console.error("Add listing failed:", error.message)
-      // Optional: Notify the user that the operation failed
-      return throwError(() => error)
-    })
-  )
-}
+    // If offline or server down, queue for later
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      this.addToQueue({ type: "add", data: listing })
+      this.updateLocalCache(listing, "add")
+      return of(listing)
+    }
+
+    return this.http.post<Listing>(this.apiUrl, listing).pipe(
+      catchError((error: HttpErrorResponse) => {
+        // Queue for later
+        this.addToQueue({ type: "add", data: listing })
+        this.updateLocalCache(listing, "add")
+
+        console.warn("Operation queued for later", listing)
+        return of(listing) // Return optimistic result
+      }),
+    )
+  }
+
   updateListing(listing: Listing): Observable<Listing> {
     if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
       this.addToQueue({ type: "update", data: listing })
