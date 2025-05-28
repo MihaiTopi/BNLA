@@ -240,25 +240,6 @@ export class ListingService {
     )
   }
 
-  // Legacy method for backward compatibility
-  getListings(): Observable<Listing[]> {
-    return this.getListingsPage(1, 0).pipe(
-      catchError((error) => {
-        console.error("Error in getListings:", error)
-        return of({
-          data: [],
-          meta: {
-            currentPage: 1,
-            totalPages: 0,
-            totalCount: 0,
-            limit: 0,
-          },
-        })
-      }),
-      map((response: PaginatedResponse<Listing>) => response.data),
-    )
-  }
-
   addListing(listing: Listing): Observable<Listing> {
     if (!listing.id) listing.id = uuidv4()
     return this.http.post<Listing>(this.apiUrl, listing)
