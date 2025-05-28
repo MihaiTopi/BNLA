@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Listing } from '../models/listing.model';
-import { ListingService } from '../listing.service/listing.service';
+import { ListingService } from '../listing.service/listing.service'; // 👈 Import the service
 
 @Component({
   selector: 'app-create-listings',
@@ -12,9 +12,10 @@ import { ListingService } from '../listing.service/listing.service';
   styleUrls: ['./create-listings.component.css']
 })
 export class CreateListingsComponent {
-  newListing: Omit<Listing, 'id'> = {  // Using Omit since we'll generate ID in service
+  newListing: Listing = {
+    id: '',
     title: '',
-    category: 'Home',
+    category: 'Home', // Default category
     price: 0,
     description: '',
     ownerId: 'me',
@@ -22,75 +23,39 @@ export class CreateListingsComponent {
     location: 'Cluj'
   };
 
-  categories = [
-    'Home', 'Garden', 'Education', 'Vehicles', 'Technology', 
-    'Computers', 'Clothing', 'Sports', 'Electronics', 'Outdoors'
-  ];  // Make sure this matches server's allowedCategories
+  categories = ['Home', 'Garden', 'Education', 'Vehicles', 'Technology', 'Computers', 'Clothing'];
 
   counties = [
-    'Alba', 'Arad', 'Arges', 'Bacau', 'Bihor', 'Bistrita-Nasaud', 'Botosani', 
-    'Brasov', 'Braila', 'Buzau', 'Caras-Severin', 'Cluj', 'Constanta', 
-    'Covasna', 'Dambovita', 'Dolj', 'Galati', 'Gorj', 'Harghita', 'Hunedoara',
-    'Ialomita', 'Iasi', 'Ilfov', 'Maramures', 'Mehedinti', 'Mures', 'Neamt', 
-    'Olt', 'Prahova', 'Satu Mare', 'Salaj', 'Sibiu', 'Suceava', 'Teleorman', 
-    'Timis', 'Tulcea', 'Valcea', 'Vaslui', 'Vrancea'
+    'Alba', 'Arad', 'Arges', 'Bacau', 'Bihor', 'Bistrita-Nasaud', 'Botosani', 'Brasov', 'Braila', 'Buzau',
+    'Caras-Severin', 'Cluj', 'Constanta', 'Covasna', 'Dambovita', 'Dolj', 'Galati', 'Gorj', 'Harghita', 'Hunedoara',
+    'Ialomita', 'Iasi', 'Ilfov', 'Maramures', 'Mehedinti', 'Mures', 'Neamt', 'Olt', 'Prahova', 'Satu Mare', 'Salaj',
+    'Sibiu', 'Suceava', 'Teleorman', 'Timis', 'Tulcea', 'Valcea', 'Vaslui', 'Vrancea'
   ];
 
-  isLoading = false;  // Add loading state
-
-  constructor(private listingService: ListingService) {}
+  constructor(private listingService: ListingService) {} // 👈 Inject service
 
   saveListing() {
-    if (!this.validateForm()) {
-      return;
-    }
-
-    this.isLoading = true;
-    
     // Set uploadDate to current date
     this.newListing.uploadDate = new Date().toISOString().split('T')[0];
 
-    this.listingService.addListing(this.newListing as Listing).subscribe({
+    this.listingService.addListing(this.newListing).subscribe({
       next: () => {
-        alert('Listing saved successfully!');
-        this.resetForm();
+        alert('Listing saved!');
+        // Reset form
+        this.newListing = {
+          id: '',
+          title: '',
+          category: 'Home',
+          price: 0,
+          description: '',
+          ownerId: 'me',
+          uploadDate: '',
+          location: 'Cluj'
+        };
       },
-      error: (err) => {
-        console.error('Error saving listing:', err);
-        alert(`Failed to save listing: ${err.message || 'Unknown error'}`);
-      },
-      complete: () => {
-        this.isLoading = false;
+      error: () => {
+        alert('Failed to save listing');
       }
     });
-  }
-
-  private validateForm(): boolean {
-    if (!this.newListing.title.trim()) {
-      alert('Title is required');
-      return false;
-    }
-    if (this.newListing.price <= 0) {
-      alert('Price must be greater than 0');
-      return false;
-    }
-    if (!this.newListing.description.trim()) {
-      alert('Description is required');
-      return false;
-    }
-    return true;
-  }
-
-  private resetForm() {
-    this.newListing = {
-      title: '',
-      category: 'Home',
-      price: 0,
-      description: '',
-      ownerId: 'me',
-      uploadDate: '',
-      location: 'Cluj'
-    };
-    this.isLoading = false;
   }
 }

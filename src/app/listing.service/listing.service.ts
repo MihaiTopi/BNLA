@@ -361,26 +361,9 @@ export class ListingService {
   }
 
   addListing(listing: Listing): Observable<Listing> {
-    if (!listing.id) listing.id = uuidv4()
-
-    // If offline or server down, queue for later
-    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
-      this.addToQueue({ type: "add", data: listing })
-      this.updateLocalCache(listing, "add")
-      return of(listing)
-    }
-
-    return this.http.post<Listing>(this.apiUrl, listing).pipe(
-      catchError((error: HttpErrorResponse) => {
-        // Queue for later
-        this.addToQueue({ type: "add", data: listing })
-        this.updateLocalCache(listing, "add")
-
-        console.warn("Operation queued for later", listing)
-        return of(listing) // Return optimistic result
-      }),
-    )
-  }
+  if (!listing.id) listing.id = uuidv4();
+  return this.http.post<Listing>(this.apiUrl, listing);
+}
 
   updateListing(listing: Listing): Observable<Listing> {
     if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
