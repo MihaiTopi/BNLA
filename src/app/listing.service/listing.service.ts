@@ -1,8 +1,14 @@
 import { HttpClient, type HttpErrorResponse, HttpParams } from "@angular/common/http"
 import { Injectable } from "@angular/core"
-import { Observable, of, catchError, map } from "rxjs"
+import { Observable, of, catchError, BehaviorSubject, map } from "rxjs"
 import type { Listing } from "../models/listing.model"
 import { v4 as uuidv4 } from "uuid"
+
+interface QueueItem {
+  type: "add" | "update" | "delete"
+  data: Listing | string // Listing for add/update, string (id) for delete
+  timestamp: number
+}
 
 export interface PaginatedResponse<T> {
   data: T[]
@@ -19,12 +25,21 @@ export interface CategoryStat {
   count: number
 }
 
+// Update the PriceRangeStats interface to match how it's used in the component
 export interface PriceRangeStats {
   category: string
   low_price: number
   medium_price: number
   high_price: number
 }
+
+// If there's another definition of PriceRangeStats elsewhere in the file that looks like this:
+// export interface PriceRangeStats {
+//   minPrice: number;
+//   maxPrice: number;
+//   count: number;
+// }
+// Replace it with the definition above.
 
 export interface MonthlyStat {
   month: string
@@ -57,10 +72,51 @@ export interface StatisticsResponse {
   providedIn: "root",
 })
 export class ListingService {
+  //private apiUrl = 'http://192.168.64.129:3000/api/listings';
+  //private apiUrl = "http://26.183.81.226:3000/api/listings"
+  //private statsUrl = "http://26.183.81.226:3000/api/statistics" // change here to statistics-unoptimized to see difference
+  //private apiUrl = "/api/listings";
+  //private statsUrl = "/api/statistics";
   private apiUrl = "https://server-production-99e3.up.railway.app/api/listings";
-  private statsUrl = "https://server-production-99e3.up.railway.app/api/statistics";
+  private statsUrl = "https://server-production-99e3.up.railway.app/api/statistics"; 
+  // or use /api/statistics-unoptimized if needed
 
-  constructor(private http: HttpClient) {}
+
+  // Track network and server status internally
+  private isOfflineSubject = new BehaviorSubject<boolean>(false)
+  private isServerDownSubject = new BehaviorSubject<boolean>(false)
+  private syncInProgressSubject = new BehaviorSubject<boolean>(false)
+
+  private offlineQueue: QueueItem[] = []
+  private readonly QUEUE_STORAGE_KEY = "offline_listings_queue"
+
+  constructor(private http: HttpClient) {
+    // Load queue from localStorage on service initialization
+    this.loadQueueFromStorage()
+
+    this.checkServerAndSync()
+  }
+
+  // Check server and sync if possible
+  private checkServerAndSync() {
+    if (this.isOfflineSubject.value) return
+
+    // Simple ping to check server status
+    this.http
+      .get<any>(`${this.apiUrl}/ping`)
+      .pipe(
+        catchError((error: HttpErrorResponse) => {
+          this.isServerDownSubject.next(true)
+          return of(null)
+        }),
+      )
+      .subscribe((result) => {
+        if (result) {
+          this.isServerDownSubject.next(false)
+          this.syncOfflineChanges().subscribe()
+        }
+      })
+  }
 
   // Get optimized statistics from server
   getStatistics(): Observable<StatisticsResponse> {
@@ -102,8 +158,8 @@ export class ListingService {
     )
   }
 
-  // Transform listings data into statistics format
-  private generateStatisticsFromListings(listings: Listing[]): StatisticsResponse {
+  // Add this method to transform listings data into statistics format
+  generateStatisticsFromListings(listings: Listing[]): StatisticsResponse {
     console.log("Generating statistics from", listings.length, "listings")
 
     // 1. Category Distribution
@@ -212,6 +268,11 @@ export class ListingService {
     sortBy = "price",
     sortOrder: "asc" | "desc" = "asc",
   ): Observable<PaginatedResponse<Listing>> {
+    // If offline or server down, return cached listings with client-side pagination
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      return this.getOfflinePaginatedListings(page, limit, category, sortBy, sortOrder)
+    }
+
     // Build query parameters
     let params = new HttpParams()
       .set("page", page.toString())
@@ -227,33 +288,254 @@ export class ListingService {
     return this.http.get<PaginatedResponse<Listing>>(this.apiUrl, { params }).pipe(
       catchError((error: HttpErrorResponse) => {
         console.error("Error fetching paginated listings", error)
-        return of({
-          data: [],
-          meta: {
-            currentPage: page,
-            totalPages: 0,
-            totalCount: 0,
-            limit,
-          },
-        })
+        // Fall back to offline mode if server request fails
+        this.isServerDownSubject.next(true)
+        return this.getOfflinePaginatedListings(page, limit, category, sortBy, sortOrder)
       }),
+    )
+  }
+
+  // Fallback method for offline pagination using cached data
+  private getOfflinePaginatedListings(
+    page: number,
+    limit: number,
+    category: string,
+    sortBy: string,
+    sortOrder: "asc" | "desc",
+  ): Observable<PaginatedResponse<Listing>> {
+    const cachedData = localStorage.getItem("cached_listings")
+    let listings: Listing[] = cachedData ? JSON.parse(cachedData) : []
+
+    // Apply filters and sorting client-side
+    if (category) {
+      listings = listings.filter((listing) => listing.category === category)
+    }
+
+    // Apply sorting
+    listings.sort((a: any, b: any) => {
+      const aValue = a[sortBy]
+      const bValue = b[sortBy]
+
+      if (sortBy === "uploadDate") {
+        const dateA = new Date(aValue).getTime()
+        const dateB = new Date(bValue).getTime()
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA
+      }
+
+      if (typeof aValue === "number") {
+        return sortOrder === "asc" ? aValue - bValue : bValue - aValue
+      }
+
+      // String comparison
+      const comparison = aValue.localeCompare(bValue)
+      return sortOrder === "asc" ? comparison : -comparison
+    })
+
+    // Apply pagination
+    const totalCount = listings.length
+    const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1
+    const startIndex = (page - 1) * limit
+    const paginatedData = limit > 0 ? listings.slice(startIndex, startIndex + limit) : listings
+
+    return of({
+      data: paginatedData,
+      meta: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+      },
+    })
+  }
+
+  // Legacy method for backward compatibility
+  getListings(): Observable<Listing[]> {
+    return this.getListingsPage(1, 0).pipe(
+      catchError((error) => {
+        console.error("Error in getListings:", error)
+        return of({ data: [], meta: { currentPage: 1, totalPages: 0, totalCount: 0, limit: 0 } })
+      }),
+      // Extract just the data array to maintain backward compatibility
+      map((response: PaginatedResponse<Listing>) => response.data),
     )
   }
 
   addListing(listing: Listing): Observable<Listing> {
     if (!listing.id) listing.id = uuidv4()
-    return this.http.post<Listing>(this.apiUrl, listing)
+
+    // If offline or server down, queue for later
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      this.addToQueue({ type: "add", data: listing })
+      this.updateLocalCache(listing, "add")
+      return of(listing)
+    }
+
+    return this.http.post<Listing>(this.apiUrl, listing).pipe(
+      catchError((error: HttpErrorResponse) => {
+        // Queue for later
+        this.addToQueue({ type: "add", data: listing })
+        this.updateLocalCache(listing, "add")
+
+        console.warn("Operation queued for later", listing)
+        return of(listing) // Return optimistic result
+      }),
+    )
   }
 
   updateListing(listing: Listing): Observable<Listing> {
-    return this.http.put<Listing>(`${this.apiUrl}/${listing.id}`, listing)
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      this.addToQueue({ type: "update", data: listing })
+      this.updateLocalCache(listing, "update")
+      return of(listing)
+    }
+
+    return this.http.put<Listing>(`${this.apiUrl}/${listing.id}`, listing).pipe(
+      catchError((error: HttpErrorResponse) => {
+        this.addToQueue({ type: "update", data: listing })
+        this.updateLocalCache(listing, "update")
+
+        console.warn("Update queued for later", listing)
+        return of(listing)
+      }),
+    )
   }
 
   deleteListing(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`)
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      this.addToQueue({ type: "delete", data: id })
+      this.updateLocalCache(id, "delete")
+      return of(undefined)
+    }
+
+    return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(
+      catchError((error: HttpErrorResponse) => {
+        this.addToQueue({ type: "delete", data: id })
+        this.updateLocalCache(id, "delete")
+
+        console.warn("Delete queued for later", id)
+        return of(undefined)
+      }),
+    )
   }
 
-  // Filter and sort listings (client-side)
+  // Queue management
+  private addToQueue(item: Omit<QueueItem, "timestamp">) {
+    const queueItem: QueueItem = {
+      ...item,
+      timestamp: Date.now(),
+    }
+
+    this.offlineQueue.push(queueItem)
+    this.saveQueueToStorage()
+  }
+
+  private saveQueueToStorage() {
+    if (typeof window !== "undefined" && localStorage) {
+      localStorage.setItem(this.QUEUE_STORAGE_KEY, JSON.stringify(this.offlineQueue))
+    }
+  }
+
+  private loadQueueFromStorage() {
+    if (typeof window !== "undefined" && localStorage) {
+      const storedQueue = localStorage.getItem(this.QUEUE_STORAGE_KEY)
+      if (storedQueue) {
+        this.offlineQueue = JSON.parse(storedQueue)
+      }
+    }
+  }
+
+  // Local cache management
+  private updateLocalCache(item: Listing | string, operation: "add" | "update" | "delete") {
+    if (typeof window === "undefined" || !localStorage) return
+
+    const cachedData = localStorage.getItem("cached_listings")
+    let listings: Listing[] = cachedData ? JSON.parse(cachedData) : []
+
+    if (operation === "add" && typeof item !== "string") {
+      listings.push(item)
+    } else if (operation === "update" && typeof item !== "string") {
+      const index = listings.findIndex((l) => l.id === item.id)
+      if (index !== -1) {
+        listings[index] = item
+      }
+    } else if (operation === "delete" && typeof item === "string") {
+      listings = listings.filter((l) => l.id !== item)
+    }
+
+    localStorage.setItem("cached_listings", JSON.stringify(listings))
+  }
+
+  // Synchronization logic
+  syncOfflineChanges(): Observable<boolean> {
+    if (this.offlineQueue.length === 0) {
+      return of(true) // Nothing to sync
+    }
+
+    if (this.isOfflineSubject.value || this.isServerDownSubject.value) {
+      return of(false) // Cannot sync now
+    }
+
+    this.syncInProgressSubject.next(true)
+
+    return new Observable<boolean>((observer) => {
+      const processQueue = async () => {
+        const queue = [...this.offlineQueue]
+        let success = true
+
+        for (const item of queue) {
+          try {
+            if (item.type === "add" && typeof item.data !== "string") {
+              await this.http.post<Listing>(this.apiUrl, item.data).toPromise()
+            } else if (item.type === "update" && typeof item.data !== "string") {
+              await this.http.put<Listing>(`${this.apiUrl}/${item.data.id}`, item.data).toPromise()
+            } else if (item.type === "delete" && typeof item.data === "string") {
+              await this.http.delete<void>(`${this.apiUrl}/${item.data}`).toPromise()
+            }
+
+            // Remove processed item from queue
+            const index = this.offlineQueue.findIndex((qi) => qi.timestamp === item.timestamp && qi.type === item.type)
+            if (index !== -1) {
+              this.offlineQueue.splice(index, 1)
+              this.saveQueueToStorage()
+            }
+          } catch (error) {
+            console.error("Failed to sync item", item, error)
+            success = false
+            break
+          }
+        }
+
+        // After sync attempt, refresh cached listings if successful
+        if (success) {
+          try {
+            const response = await this.http.get<PaginatedResponse<Listing>>(this.apiUrl).toPromise()
+            if (response) {
+              localStorage.setItem("cached_listings", JSON.stringify(response.data))
+            }
+          } catch (error) {
+            console.error("Failed to refresh cache after sync", error)
+          }
+        }
+
+        this.syncInProgressSubject.next(false)
+        observer.next(success)
+        observer.complete()
+      }
+
+      processQueue()
+
+      return {
+        unsubscribe() {},
+      }
+    })
+  }
+
+  // Get pending changes count
+  getPendingChangesCount(): number {
+    return this.offlineQueue.length
+  }
+
+  // Your existing methods
   filterListings(
     listings: Listing[],
     selectedCategory: string,
@@ -279,7 +561,6 @@ export class ListingService {
     return result
   }
 
-  // Sample data for demonstration
   private newListings: Listing[] = [
     {
       id: uuidv4(),
@@ -291,7 +572,126 @@ export class ListingService {
       uploadDate: "2025-03-25",
       location: "Ilfov",
     },
-    // ... (rest of the sample data remains the same)
+    {
+      id: uuidv4(),
+      title: "Camping Tent",
+      category: "Home",
+      price: 10,
+      description: "Spacious tent for outdoor adventures.",
+      ownerId: "user7",
+      uploadDate: "2025-03-26",
+      location: "Brasov",
+    },
+    {
+      id: uuidv4(),
+      title: "VR Headset",
+      category: "Technology",
+      price: 30,
+      description: "High-end virtual reality headset.",
+      ownerId: "user8",
+      uploadDate: "2025-03-27",
+      location: "Sibiu",
+    },
+    {
+      id: uuidv4(),
+      title: "Lawn Mower",
+      category: "Garden",
+      price: 15,
+      description: "Electric lawn mower available for short-term rental.",
+      ownerId: "user1",
+      uploadDate: "2024-12-25",
+      location: "Cluj",
+    },
+    {
+      id: uuidv4(),
+      title: "Physics Textbook",
+      category: "Education",
+      price: 5,
+      description: "University-level physics textbook in great condition.",
+      ownerId: "me",
+      uploadDate: "2025-02-28",
+      location: "Dolj",
+    },
+    {
+      id: uuidv4(),
+      title: "Gaming Laptop",
+      category: "Computers",
+      price: 50,
+      description: "High-performance gaming laptop available for rent.",
+      ownerId: "user3",
+      uploadDate: "2025-03-15",
+      location: "Cluj",
+    },
+    {
+      id: uuidv4(),
+      title: "Car Jack",
+      category: "Vehicles",
+      price: 10,
+      description: "Hydraulic car jack, great for repairs.",
+      ownerId: "user4",
+      uploadDate: "2024-12-10",
+      location: "Prahova",
+    },
+    {
+      id: uuidv4(),
+      title: "Smartphone Gimbal",
+      category: "Technology",
+      price: 20,
+      description: "Stabilizer for smooth video recording.",
+      ownerId: "user5",
+      uploadDate: "2025-03-05",
+      location: "Tulcea",
+    },
+    {
+      id: uuidv4(),
+      title: "Lawn Mower",
+      category: "Garden",
+      price: 15,
+      description: "Electric lawn mower available for short-term rental.",
+      ownerId: "user1",
+      uploadDate: "2025-03-20",
+      location: "Cluj",
+    },
+    {
+      id: uuidv4(),
+      title: "Physics Textbook",
+      category: "Education",
+      price: 5,
+      description: "University-level physics textbook in great condition.",
+      ownerId: "me",
+      uploadDate: "2024-02-28",
+      location: "Dolj",
+    },
+    {
+      id: uuidv4(),
+      title: "Gaming Laptop",
+      category: "Computers",
+      price: 50,
+      description: "High-performance gaming laptop available for rent.",
+      ownerId: "user3",
+      uploadDate: "2024-11-15",
+      location: "Cluj",
+    },
+    {
+      id: uuidv4(),
+      title: "Car Jack",
+      category: "Vehicles",
+      price: 10,
+      description: "Hydraulic car jack, great for repairs.",
+      ownerId: "user4",
+      uploadDate: "2024-08-10",
+      location: "Prahova",
+    },
+    {
+      id: uuidv4(),
+      title: "Smartphone Gimbal",
+      category: "Technology",
+      price: 20,
+      description: "Stabilizer for smooth video recording.",
+      ownerId: "user5",
+      uploadDate: "2024-09-15",
+      location: "Tulcea",
+    },
   ]
 
   getNewListings(): Listing[] {
