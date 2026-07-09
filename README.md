@@ -1,4 +1,4 @@
-# BNLA Listing Platform - Technical Features
+# Borrowing and Lending Listings Platform - Technical Features
 
 This document describes the key features implemented in the BNLA Listing Platform. The application uses an Angular frontend, a Node.js/Express backend, and a SQLite database (`better-sqlite3`).
 
